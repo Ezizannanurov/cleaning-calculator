@@ -10,7 +10,7 @@ window.CONFIG = {
   "currencySymbol": "₽",
   "githubRepo": "Ezizannanurov/cleaning-calculator",
   "adminPin": "8814",
-  "googleSheetUrl": "",
+  "googleSheetUrl": "https://docs.google.com/spreadsheets/d/1HGqXDEan_f9t4GQ-KZMi8BhJ-yJWR5dxbTD44VFfO4Y/edit?usp=sharing",
   "minOrderPrice": 2500,
   "defaultArea": 45,
   "minArea": 10,

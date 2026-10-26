@@ -808,6 +808,10 @@
    */
   function populateAdminForm() {
     if (dom.adminGsheetUrl) dom.adminGsheetUrl.value = CONFIG.googleSheetUrl || '';
+    const openBtn = document.getElementById('btn-gsheet-open-live');
+    if (openBtn && CONFIG.googleSheetUrl) {
+      openBtn.href = CONFIG.googleSheetUrl;
+    }
     if (dom.gsheetLiveIndicator) {
       if (CONFIG.googleSheetUrl) {
         dom.gsheetLiveIndicator.textContent = '✓ Подключена';
