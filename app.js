@@ -146,9 +146,11 @@
 
     dom.cleaningTypesContainer.innerHTML = '';
 
-    // Определяем тип по умолчанию
-    const defaultType = CONFIG.cleaningTypes.find(t => t.isDefault) || CONFIG.cleaningTypes[0];
-    state.selectedTypeId = defaultType ? defaultType.id : null;
+    // Определяем тип по умолчанию (только если еще не выбран)
+    if (!state.selectedTypeId || !CONFIG.cleaningTypes.some(t => t.id === state.selectedTypeId)) {
+      const defaultType = CONFIG.cleaningTypes.find(t => t.isDefault) || CONFIG.cleaningTypes[0];
+      state.selectedTypeId = defaultType ? defaultType.id : null;
+    }
 
     CONFIG.cleaningTypes.forEach(type => {
       const isSelected = type.id === state.selectedTypeId;
@@ -209,12 +211,13 @@
     dom.servicesContainer.innerHTML = '';
 
     CONFIG.additionalServices.forEach(service => {
+      const isChecked = state.selectedServices.has(service.id);
       const card = document.createElement('label');
-      card.className = 'service-card';
+      card.className = `service-card ${isChecked ? 'checked' : ''}`;
       card.setAttribute('data-service-id', service.id);
 
       card.innerHTML = `
-        <input type="checkbox" value="${service.id}" class="service-card-checkbox">
+        <input type="checkbox" value="${service.id}" class="service-card-checkbox" ${isChecked ? 'checked' : ''}>
         <div class="service-left">
           <span class="custom-checkbox">
             <svg viewBox="0 0 16 16"><polyline points="3 8 7 12 13 4"></polyline></svg>
@@ -910,6 +913,11 @@
     const activeSheetUrl = (CONFIG.googleSheetUrl || '').trim();
     if (activeSheetUrl) {
       syncWithGoogleSheet(activeSheetUrl, false);
+
+      // Автоматическое обновление цен при переключении вкладки обратно на калькулятор
+      window.addEventListener('focus', () => {
+        syncWithGoogleSheet(activeSheetUrl, false);
+      });
     }
   }
 
@@ -938,8 +946,10 @@
     }
 
     try {
-      const gvizUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`;
-      const res = await fetch(gvizUrl);
+      // КРИТИЧНО: headers=0 возвращает ВСЕ строки (включая шапку и контакты).
+      // _t=Date.now() и cache: 'no-store' полностью исключают кэш браузера и CDN!
+      const gvizUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&headers=0&tq=&_t=${Date.now()}`;
+      const res = await fetch(gvizUrl, { cache: 'no-store' });
       if (!res.ok) {
         throw new Error(`Google Sheets вернул статус ${res.status}. Убедитесь, что доступ к таблице открыт («Все, у кого есть ссылка»).`);
       }
@@ -968,19 +978,27 @@
         if (!key || val === '' || val === null || val === undefined) return;
 
         // Общие параметры компании
-        if (key.includes('companyname') || key.includes('название компании')) {
-          CONFIG.companyName = String(val);
-          updatedCount++;
-        } else if (key.includes('telegram') || key.includes('телеграм')) {
-          CONFIG.telegramManager = String(val).replace(/^@/, '');
-          updatedCount++;
-        } else if (key.includes('phone') || key.includes('телефон')) {
-          CONFIG.phone = String(val);
-          updatedCount++;
-        } else if (key.includes('workinghours') || key.includes('график') || key.includes('часы')) {
-          CONFIG.workingHours = String(val);
-          updatedCount++;
-        } else if (key.includes('minorder') || key.includes('минимальн')) {
+        if (key === 'companyname' || key.includes('companyname') || key.includes('название компании')) {
+          if (String(val).trim()) {
+            CONFIG.companyName = String(val).trim();
+            updatedCount++;
+          }
+        } else if (key === 'telegrammanager' || key.includes('telegram') || key.includes('телеграм')) {
+          if (String(val).trim()) {
+            CONFIG.telegramManager = String(val).trim().replace(/^@/, '');
+            updatedCount++;
+          }
+        } else if (key === 'phone' || key.includes('телефон')) {
+          if (String(val).trim()) {
+            CONFIG.phone = String(val).trim();
+            updatedCount++;
+          }
+        } else if (key === 'workinghours' || key.includes('график') || key.includes('часы')) {
+          if (String(val).trim()) {
+            CONFIG.workingHours = String(val).trim();
+            updatedCount++;
+          }
+        } else if (key === 'minorderprice' || key.includes('minorder') || key.includes('минимальн')) {
           const num = Number(val);
           if (!isNaN(num) && num > 0) {
             CONFIG.minOrderPrice = num;
@@ -1036,12 +1054,20 @@
         dom.gsheetLiveIndicator.classList.add('active');
       }
 
+      // Обновление видимого индикатора в шапке сайта
+      const syncPill = document.getElementById('brand-sync-pill');
+      const syncPillText = document.getElementById('sync-pill-text');
+      if (syncPill && syncPillText) {
+        syncPill.style.display = 'inline-flex';
+        syncPillText.textContent = 'Цены: Google Таблица (Live)';
+      }
+
       if (isManual) {
         showGsheetStatus(`✓ <strong>Таблица успешно подключена!</strong><br>Обновлено параметров: ${updatedCount}. Цены в калькуляторе стали актуальными.`, 'success');
       }
 
     } catch (err) {
-      console.error('Ошибка синхронизации Google Sheets:', err);
+      console.warn('Ошибка синхронизации Google Sheets:', err);
       if (dom.gsheetLiveIndicator) {
         dom.gsheetLiveIndicator.textContent = '⚠️ Ошибка доступа';
         dom.gsheetLiveIndicator.classList.remove('active');

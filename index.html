@@ -6,7 +6,7 @@
   <meta name="description" content="Онлайн-калькулятор стоимости клининга. Рассчитайте точную стоимость уборки квартиры или дома и отправьте заявку напрямую в Telegram за 1 минуту.">
   <meta name="theme-color" content="#0284c7">
   <title>Калькулятор стоимости уборки | Чистый Дом</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 
@@ -28,6 +28,10 @@
         </div>
       </div>
       <div class="brand-badges">
+        <span class="trust-pill sync-pill" id="brand-sync-pill" title="Цены в реальном времени подгружаются из Google Таблицы">
+          <span class="sync-dot"></span>
+          <span id="sync-pill-text">Цены: Google Таблица (Live)</span>
+        </span>
         <span class="trust-pill">✓ Без предоплаты</span>
         <span class="trust-pill">✓ Своя химия и пылесосы</span>
         <span class="trust-pill">✓ Гарантия чистоты</span>
@@ -341,7 +345,7 @@
   </dialog>
 
   <!-- Подключение конфигурации и логики -->
-  <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script src="config.js?v=2"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>
