@@ -151,11 +151,12 @@
       <!-- Динамически заполняется из config.js -->
     </footer>
 
-    <!-- Кнопка вызова панели владельца -->
-    <div class="footer-admin-bar">
-      <button type="button" class="btn-admin-open" id="btn-open-admin">
-        ⚙️ Управление тарифами (Панель владельца)
-      </button>
+    <!-- Скрытый футер с незаметным входом для владельца -->
+    <div class="footer-bottom-info">
+      <p class="copyright-text">
+        © «<span id="copyright-name">Чистый Дом</span>». Все права защищены.
+        <button type="button" class="secret-admin-trigger" id="btn-secret-admin" aria-label="Вход для владельца" title="Вход для владельца">·</button>
+      </p>
     </div>
 
   </div>
@@ -211,99 +212,117 @@
         <button type="button" class="btn-close-modal" id="btn-close-admin" aria-label="Закрыть панель">✕</button>
       </div>
 
-      <!-- Блок 1: Глобальное сохранение через GitHub Pages -->
-      <section class="admin-github-card">
-        <div class="github-card-header">
-          <span class="github-badge">🌐 Глобальное сохранение для всех клиентов</span>
+      <!-- Экран ввода PIN-кода для защиты от посторонних -->
+      <div class="admin-auth-box" id="admin-auth-view">
+        <span class="auth-lock-icon" aria-hidden="true">🔒</span>
+        <h4 class="auth-title">Вход для владельца</h4>
+        <p class="auth-subtitle">Введите PIN-код для доступа к управлению тарифами:</p>
+        <div class="auth-input-group">
+          <input type="password" id="admin-pin-input" class="input-field auth-pin-field" placeholder="ПИН-код" maxlength="10" autocomplete="current-password">
+          <button type="button" class="btn-auth-submit" id="btn-auth-submit">Войти</button>
         </div>
-        <p class="github-card-desc">
-          Сохраняет изменения напрямую в репозиторий GitHub Pages. Изменения вступают в силу глобально для всех посетителей сайта.
-        </p>
+        <div class="auth-error-msg" id="admin-pin-error"></div>
+        <p class="auth-hint">По умолчанию PIN-код: <code>1234</code> (настраивается в config.js)</p>
+      </div>
 
-        <div class="admin-grid-2">
-          <div class="input-group">
-            <label for="admin-github-repo" class="input-label">Репозиторий GitHub</label>
-            <input type="text" id="admin-github-repo" class="input-field" placeholder="например: user/cleaning-calculator">
+      <!-- Основное содержимое панели (показывается после ввода PIN-кода) -->
+      <div id="admin-main-view" style="display: none; flex-direction: column; gap: 16px;">
+
+        <!-- Блок 1: Глобальное сохранение через GitHub Pages -->
+        <section class="admin-github-card">
+          <div class="github-card-header">
+            <span class="github-badge">🌐 Глобальное сохранение для всех клиентов</span>
           </div>
-          <div class="input-group">
-            <div class="label-with-link">
-              <label for="admin-github-token" class="input-label">GitHub Token (с правами repo)</label>
-              <a href="https://github.com/settings/tokens/new?scopes=repo&description=Cleaning+Calculator+Admin" target="_blank" rel="noopener noreferrer" class="token-helper-link">
-                🔑 Получить токен в 1 клик
-              </a>
-            </div>
-            <input type="password" id="admin-github-token" class="input-field" placeholder="ghp_... или github_pat_...">
-          </div>
-        </div>
+          <p class="github-card-desc">
+            Сохраняет изменения напрямую в репозиторий GitHub Pages. Изменения вступают в силу глобально для всех посетителей сайта.
+          </p>
 
-        <button type="button" class="btn-admin-github" id="btn-admin-github-save">
-          <svg class="github-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
-          </svg>
-          <span>Сохранить глобально на GitHub Pages</span>
-        </button>
-
-        <div class="admin-status-message" id="admin-github-status" role="status"></div>
-      </section>
-
-      <form id="admin-form" onsubmit="return false;">
-        <!-- Секция 2: Основные контакты и минимальный выезд -->
-        <fieldset class="admin-fieldset">
-          <legend class="admin-legend">Настройки компании</legend>
           <div class="admin-grid-2">
             <div class="input-group">
-              <label for="admin-company-name" class="input-label">Название компании</label>
-              <input type="text" id="admin-company-name" class="input-field">
+              <label for="admin-github-repo" class="input-label">Репозиторий GitHub</label>
+              <input type="text" id="admin-github-repo" class="input-field" placeholder="например: user/cleaning-calculator">
             </div>
             <div class="input-group">
-              <label for="admin-tg-manager" class="input-label">Telegram менеджера (@username)</label>
-              <input type="text" id="admin-tg-manager" class="input-field">
-            </div>
-            <div class="input-group">
-              <label for="admin-phone" class="input-label">Телефон для связи</label>
-              <input type="text" id="admin-phone" class="input-field">
-            </div>
-            <div class="input-group">
-              <label for="admin-min-price" class="input-label">Минимальный выезд (₽)</label>
-              <input type="number" id="admin-min-price" class="input-field" min="500" step="100">
+              <div class="label-with-link">
+                <label for="admin-github-token" class="input-label">GitHub Token (с правами repo)</label>
+                <a href="https://github.com/settings/tokens/new?scopes=repo&description=Cleaning+Calculator+Admin" target="_blank" rel="noopener noreferrer" class="token-helper-link">
+                  🔑 Получить токен в 1 клик
+                </a>
+              </div>
+              <input type="password" id="admin-github-token" class="input-field" placeholder="ghp_... или github_pat_...">
             </div>
           </div>
-        </fieldset>
 
-        <!-- Секция 3: Тарифы за квадратный метр -->
-        <fieldset class="admin-fieldset">
-          <legend class="admin-legend">Тарифы за 1 кв.м (₽ / м²)</legend>
-          <div class="admin-types-list" id="admin-types-container">
-            <!-- Динамически заполняется -->
-          </div>
-        </fieldset>
-
-        <!-- Секция 4: Дополнительные услуги -->
-        <fieldset class="admin-fieldset">
-          <legend class="admin-legend">Дополнительные услуги (₽ за услугу)</legend>
-          <div class="admin-services-list" id="admin-services-container">
-            <!-- Динамически заполняется -->
-          </div>
-        </fieldset>
-
-        <!-- Локальные действия и экспорт -->
-        <div class="admin-bottom-bar">
-          <button type="button" class="btn-admin-apply" id="btn-admin-apply">
-            ✓ Проверить в калькуляторе сейчас
+          <button type="button" class="btn-admin-github" id="btn-admin-github-save">
+            <svg class="github-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+            <span>Сохранить глобально на GitHub Pages</span>
           </button>
-          <div class="admin-export-tools">
-            <button type="button" class="btn-admin-action" id="btn-admin-download" title="Скачать готовый config.js">
-              📥 Скачать config.js
+
+          <div class="admin-status-message" id="admin-github-status" role="status"></div>
+        </section>
+
+        <form id="admin-form" onsubmit="return false;">
+          <!-- Секция 2: Основные контакты и минимальный выезд -->
+          <fieldset class="admin-fieldset">
+            <legend class="admin-legend">Настройки компании</legend>
+            <div class="admin-grid-2">
+              <div class="input-group">
+                <label for="admin-company-name" class="input-label">Название компании</label>
+                <input type="text" id="admin-company-name" class="input-field">
+              </div>
+              <div class="input-group">
+                <label for="admin-tg-manager" class="input-label">Telegram менеджера (@username)</label>
+                <input type="text" id="admin-tg-manager" class="input-field">
+              </div>
+              <div class="input-group">
+                <label for="admin-phone" class="input-label">Телефон для связи</label>
+                <input type="text" id="admin-phone" class="input-field">
+              </div>
+              <div class="input-group">
+                <label for="admin-min-price" class="input-label">Минимальный выезд (₽)</label>
+                <input type="number" id="admin-min-price" class="input-field" min="500" step="100">
+              </div>
+            </div>
+          </fieldset>
+
+          <!-- Секция 3: Тарифы за квадратный метр -->
+          <fieldset class="admin-fieldset">
+            <legend class="admin-legend">Тарифы за 1 кв.м (₽ / м²)</legend>
+            <div class="admin-types-list" id="admin-types-container">
+              <!-- Динамически заполняется -->
+            </div>
+          </fieldset>
+
+          <!-- Секция 4: Дополнительные услуги -->
+          <fieldset class="admin-fieldset">
+            <legend class="admin-legend">Дополнительные услуги (₽ за услугу)</legend>
+            <div class="admin-services-list" id="admin-services-container">
+              <!-- Динамически заполняется -->
+            </div>
+          </fieldset>
+
+          <!-- Локальные действия и экспорт -->
+          <div class="admin-bottom-bar">
+            <button type="button" class="btn-admin-apply" id="btn-admin-apply">
+              ✓ Проверить в калькуляторе сейчас
             </button>
-            <button type="button" class="btn-admin-action" id="btn-admin-copy" title="Скопировать код для вставки в GitHub">
-              📋 Скопировать код
-            </button>
-            <button type="button" class="btn-admin-action" id="btn-admin-reset" title="Сбросить поля к исходным значениям">
-              ↺ Сбросить
-            </button>
+            <div class="admin-export-tools">
+              <button type="button" class="btn-admin-action" id="btn-admin-download" title="Скачать готовый config.js">
+                📥 Скачать config.js
+              </button>
+              <button type="button" class="btn-admin-action" id="btn-admin-copy" title="Скопировать код для вставки в GitHub">
+                📋 Скопировать код
+              </button>
+              <button type="button" class="btn-admin-action" id="btn-admin-reset" title="Сбросить поля к исходным значениям">
+                ↺ Сбросить
+              </button>
+            </div>
           </div>
-        </div>
-      </form>
+        </form>
+
+      </div>
     </div>
   </dialog>
 

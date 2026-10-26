@@ -67,10 +67,17 @@
     copyLabel: document.getElementById('copy-label'),
     copyIcon: document.getElementById('copy-icon'),
 
-    // Панель владельца
-    btnOpenAdmin: document.getElementById('btn-open-admin'),
+    // Панель владельца (скрытая)
+    btnSecretAdmin: document.getElementById('btn-secret-admin'),
+    brandLogoIcon: document.querySelector('.brand-logo-icon'),
+    copyrightName: document.getElementById('copyright-name'),
     adminModal: document.getElementById('admin-modal'),
     btnCloseAdmin: document.getElementById('btn-close-admin'),
+    adminAuthView: document.getElementById('admin-auth-view'),
+    adminMainView: document.getElementById('admin-main-view'),
+    adminPinInput: document.getElementById('admin-pin-input'),
+    btnAuthSubmit: document.getElementById('btn-auth-submit'),
+    adminPinError: document.getElementById('admin-pin-error'),
     adminGithubRepo: document.getElementById('admin-github-repo'),
     adminGithubToken: document.getElementById('admin-github-token'),
     btnAdminGithubSave: document.getElementById('btn-admin-github-save'),
@@ -96,7 +103,8 @@
     selectedTypeId: null,
     selectedServices: new Set(),
     lastGeneratedMessage: '',
-    lastTelegramUrl: ''
+    lastTelegramUrl: '',
+    isAdminAuthenticated: false
   };
 
   /**
@@ -119,6 +127,7 @@
    */
   function renderBrandHeader() {
     if (dom.brandTitle) dom.brandTitle.textContent = CONFIG.companyName || 'Клининг';
+    if (dom.copyrightName) dom.copyrightName.textContent = CONFIG.companyName || 'Чистый Дом';
     if (dom.brandPhone) {
       dom.brandPhone.textContent = CONFIG.phone || '';
       dom.brandPhone.href = `tel:${(CONFIG.phone || '').replace(/[^+\d]/g, '')}`;
@@ -614,14 +623,59 @@
   /**
    * =========================================================================
    * Веб-панель управления тарифами (Панель владельца с сохранением в GitHub)
+   * Скрытый доступ: по ссылке #admin, тройной клик по логотипу, Ctrl+Shift+A
    * =========================================================================
    */
   function initAdminPanel() {
     if (!dom.adminModal) return;
 
-    // Открытие панели
-    if (dom.btnOpenAdmin) {
-      dom.btnOpenAdmin.addEventListener('click', openAdminPanel);
+    // 1. Скрытый триггер: незаметная точка в футере
+    if (dom.btnSecretAdmin) {
+      dom.btnSecretAdmin.addEventListener('click', openAdminPanel);
+    }
+
+    // 2. Скрытый триггер: секретная ссылка в адресной строке (#admin или #owner)
+    function checkUrlHash() {
+      if (window.location.hash === '#admin' || window.location.hash === '#owner') {
+        openAdminPanel();
+      }
+    }
+    window.addEventListener('hashchange', checkUrlHash);
+    setTimeout(checkUrlHash, 200);
+
+    // 3. Скрытый триггер: тройной клик по логотипу ✨ в шапке
+    if (dom.brandLogoIcon) {
+      let logoClicks = 0;
+      let logoClickTimer = null;
+      dom.brandLogoIcon.style.cursor = 'pointer';
+      dom.brandLogoIcon.addEventListener('click', () => {
+        logoClicks++;
+        clearTimeout(logoClickTimer);
+        if (logoClicks >= 3) {
+          logoClicks = 0;
+          openAdminPanel();
+        } else {
+          logoClickTimer = setTimeout(() => { logoClicks = 0; }, 800);
+        }
+      });
+    }
+
+    // 4. Скрытый триггер: клавиатурное сочетание Ctrl + Shift + A
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a' || e.code === 'KeyA')) {
+        e.preventDefault();
+        openAdminPanel();
+      }
+    });
+
+    // Обработка кнопки ввода PIN-кода
+    if (dom.btnAuthSubmit) {
+      dom.btnAuthSubmit.addEventListener('click', verifyAdminPin);
+    }
+    if (dom.adminPinInput) {
+      dom.adminPinInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') verifyAdminPin();
+      });
     }
 
     // Закрытие панели
@@ -663,19 +717,68 @@
     if (dom.btnAdminReset) {
       dom.btnAdminReset.addEventListener('click', resetAdminConfig);
     }
-
-    populateAdminForm();
   }
 
   /**
-   * Открытие панели владельца
+   * Открытие панели владельца (с проверкой PIN-кода)
    */
   function openAdminPanel() {
-    populateAdminForm();
+    if (!dom.adminModal) return;
+
+    if (state.isAdminAuthenticated) {
+      showAdminMainView();
+    } else {
+      showAdminPinView();
+    }
+
     if (typeof dom.adminModal.showModal === 'function') {
       dom.adminModal.showModal();
     } else {
       dom.adminModal.setAttribute('open', '');
+    }
+
+    if (!state.isAdminAuthenticated && dom.adminPinInput) {
+      setTimeout(() => dom.adminPinInput.focus(), 150);
+    }
+  }
+
+  /**
+   * Показ экрана ввода PIN-кода
+   */
+  function showAdminPinView() {
+    if (dom.adminAuthView) dom.adminAuthView.style.display = 'flex';
+    if (dom.adminMainView) dom.adminMainView.style.display = 'none';
+    if (dom.adminPinInput) dom.adminPinInput.value = '';
+    if (dom.adminPinError) dom.adminPinError.classList.remove('visible');
+  }
+
+  /**
+   * Показ основного содержимого панели
+   */
+  function showAdminMainView() {
+    if (dom.adminAuthView) dom.adminAuthView.style.display = 'none';
+    if (dom.adminMainView) dom.adminMainView.style.display = 'flex';
+    populateAdminForm();
+  }
+
+  /**
+   * Проверка введенного PIN-кода
+   */
+  function verifyAdminPin() {
+    const entered = dom.adminPinInput ? dom.adminPinInput.value.trim() : '';
+    const expected = String(CONFIG.adminPin || '1234').trim();
+
+    if (entered === expected) {
+      state.isAdminAuthenticated = true;
+      showAdminMainView();
+    } else {
+      if (dom.adminPinError) {
+        dom.adminPinError.textContent = 'Неверный PIN-код. Попробуйте еще раз.';
+        dom.adminPinError.classList.add('visible');
+      }
+      if (dom.adminPinInput) {
+        dom.adminPinInput.select();
+      }
     }
   }
 
