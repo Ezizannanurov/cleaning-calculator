@@ -1073,6 +1073,370 @@ a:focus-visible,
   color: var(--accent-teal);
 }
 
+/* ==========================================================================
+   Кнопка вызова панели владельца в футере
+   ========================================================================== */
+.footer-admin-bar {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.btn-admin-open {
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-admin-open:hover {
+  background: #ffffff;
+  color: var(--primary);
+  border-color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ==========================================================================
+   Панель управления тарифами (<dialog id="admin-modal">)
+   ========================================================================== */
+.admin-dialog {
+  border: none;
+  border-radius: var(--radius-xl);
+  padding: 0;
+  max-width: 640px;
+  width: calc(100% - 24px);
+  max-height: 90vh;
+  background: #ffffff;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.28), 0 0 0 1px var(--border);
+  margin: auto;
+  overflow: hidden;
+}
+
+.admin-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.admin-dialog[open] {
+  animation: modalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.admin-modal-content {
+  padding: 22px 18px;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 520px) {
+  .admin-modal-content {
+    padding: 26px 24px;
+  }
+}
+
+.admin-modal-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* Блок глобального сохранения в GitHub */
+.admin-github-card {
+  background: #f8fafc;
+  border: 1.5px solid #cbd5e1;
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.github-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.github-badge {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.github-card-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.label-with-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.token-helper-link {
+  font-size: 0.75rem;
+  color: var(--primary);
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.btn-admin-github {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #24292e 0%, #0f172a 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.98rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+  transition: all var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-admin-github:hover {
+  background: linear-gradient(135deg, #1b1f23 0%, #000000 100%);
+  transform: translateY(-1px);
+}
+
+.btn-admin-github:active {
+  transform: translateY(1px);
+}
+
+.btn-admin-github:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.github-icon {
+  width: 20px;
+  height: 20px;
+  fill: #ffffff;
+  flex-shrink: 0;
+}
+
+.admin-status-message {
+  display: none;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.4;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.admin-status-message.visible {
+  display: block;
+}
+
+.admin-status-message.loading {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+
+.admin-status-message.success {
+  background: var(--accent-teal-light);
+  border: 1.5px solid var(--accent-teal);
+  color: var(--accent-teal);
+}
+
+.admin-status-message.error {
+  background: #fef2f2;
+  border: 1.5px solid #ef4444;
+  color: #b91c1c;
+}
+
+/* Форма настроек */
+.admin-fieldset {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px 16px;
+  margin-top: 12px;
+  background: #ffffff;
+}
+
+.admin-legend {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 8px;
+}
+
+.admin-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+@media (min-width: 520px) {
+  .admin-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.admin-types-list,
+.admin-services-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.admin-row-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--bg-input);
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+.admin-row-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-row-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.admin-input-number {
+  width: 90px;
+  padding: 8px 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--primary);
+  background: #ffffff;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  font-family: inherit;
+  text-align: right;
+  transition: border-color var(--transition-fast);
+}
+
+.admin-input-number:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-glow);
+}
+
+.admin-input-unit {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.admin-bottom-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.btn-admin-apply {
+  width: 100%;
+  min-height: 46px;
+  padding: 10px 18px;
+  background: var(--bg-input);
+  color: var(--text-main);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-admin-apply:hover {
+  background: #ffffff;
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.admin-export-tools {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.btn-admin-action {
+  padding: 10px 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border);
+  background: #ffffff;
+  color: var(--text-main);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+  transition: all var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn-admin-action:hover {
+  background: var(--bg-input);
+  border-color: #cbd5e1;
+}
+
+.btn-admin-action:active {
+  transform: scale(0.97);
+}
+
 /* Анимация */
 @keyframes fadeIn {
   from {

@@ -65,8 +65,30 @@
     btnCancelModal: document.getElementById('btn-cancel-modal'),
     btnCopyText: document.getElementById('btn-copy-text'),
     copyLabel: document.getElementById('copy-label'),
-    copyIcon: document.getElementById('copy-icon')
+    copyIcon: document.getElementById('copy-icon'),
+
+    // Панель владельца
+    btnOpenAdmin: document.getElementById('btn-open-admin'),
+    adminModal: document.getElementById('admin-modal'),
+    btnCloseAdmin: document.getElementById('btn-close-admin'),
+    adminGithubRepo: document.getElementById('admin-github-repo'),
+    adminGithubToken: document.getElementById('admin-github-token'),
+    btnAdminGithubSave: document.getElementById('btn-admin-github-save'),
+    adminGithubStatus: document.getElementById('admin-github-status'),
+    adminCompanyName: document.getElementById('admin-company-name'),
+    adminTgManager: document.getElementById('admin-tg-manager'),
+    adminPhone: document.getElementById('admin-phone'),
+    adminMinPrice: document.getElementById('admin-min-price'),
+    adminTypesContainer: document.getElementById('admin-types-container'),
+    adminServicesContainer: document.getElementById('admin-services-container'),
+    btnAdminApply: document.getElementById('btn-admin-apply'),
+    btnAdminDownload: document.getElementById('btn-admin-download'),
+    btnAdminCopy: document.getElementById('btn-admin-copy'),
+    btnAdminReset: document.getElementById('btn-admin-reset')
   };
+
+  // Снимок исходной конфигурации для сброса
+  const initialConfigSnapshot = JSON.parse(JSON.stringify(CONFIG));
 
   // Состояние калькулятора
   const state = {
@@ -88,6 +110,7 @@
     initAreaControls();
     initTelegramButton();
     initPreviewModal();
+    initAdminPanel();
     calculateAndRender();
   }
 
@@ -586,6 +609,346 @@
     dom.btnCopyText.classList.remove('copied');
     if (dom.copyLabel) dom.copyLabel.textContent = 'Скопировать текст';
     if (dom.copyIcon) dom.copyIcon.textContent = '📋';
+  }
+
+  /**
+   * =========================================================================
+   * Веб-панель управления тарифами (Панель владельца с сохранением в GitHub)
+   * =========================================================================
+   */
+  function initAdminPanel() {
+    if (!dom.adminModal) return;
+
+    // Открытие панели
+    if (dom.btnOpenAdmin) {
+      dom.btnOpenAdmin.addEventListener('click', openAdminPanel);
+    }
+
+    // Закрытие панели
+    if (dom.btnCloseAdmin) {
+      dom.btnCloseAdmin.addEventListener('click', closeAdminPanel);
+    }
+
+    // Закрытие по клику на затемненный фон
+    dom.adminModal.addEventListener('click', (e) => {
+      if (e.target === dom.adminModal) {
+        closeAdminPanel();
+      }
+    });
+
+    // Кнопка глобального сохранения в GitHub
+    if (dom.btnAdminGithubSave) {
+      dom.btnAdminGithubSave.addEventListener('click', saveGloballyToGitHub);
+    }
+
+    // Кнопка локальной проверки в калькуляторе
+    if (dom.btnAdminApply) {
+      dom.btnAdminApply.addEventListener('click', () => {
+        applyAdminChanges();
+        showGithubStatus('✓ Изменения применены в текущем окне калькулятора.', 'success');
+      });
+    }
+
+    // Кнопка скачивания config.js
+    if (dom.btnAdminDownload) {
+      dom.btnAdminDownload.addEventListener('click', downloadUpdatedConfigFile);
+    }
+
+    // Кнопка копирования кода config.js
+    if (dom.btnAdminCopy) {
+      dom.btnAdminCopy.addEventListener('click', copyUpdatedConfigCode);
+    }
+
+    // Кнопка сброса к исходным настройкам
+    if (dom.btnAdminReset) {
+      dom.btnAdminReset.addEventListener('click', resetAdminConfig);
+    }
+
+    populateAdminForm();
+  }
+
+  /**
+   * Открытие панели владельца
+   */
+  function openAdminPanel() {
+    populateAdminForm();
+    if (typeof dom.adminModal.showModal === 'function') {
+      dom.adminModal.showModal();
+    } else {
+      dom.adminModal.setAttribute('open', '');
+    }
+  }
+
+  /**
+   * Закрытие панели владельца
+   */
+  function closeAdminPanel() {
+    if (typeof dom.adminModal.close === 'function') {
+      dom.adminModal.close();
+    } else {
+      dom.adminModal.removeAttribute('open');
+    }
+  }
+
+  /**
+   * Заполнение полей формы актуальными данными
+   */
+  function populateAdminForm() {
+    if (dom.adminGithubRepo) {
+      dom.adminGithubRepo.value = CONFIG.githubRepo || '';
+    }
+    if (dom.adminCompanyName) dom.adminCompanyName.value = CONFIG.companyName || '';
+    if (dom.adminTgManager) dom.adminTgManager.value = CONFIG.telegramManager || '';
+    if (dom.adminPhone) dom.adminPhone.value = CONFIG.phone || '';
+    if (dom.adminMinPrice) dom.adminMinPrice.value = CONFIG.minOrderPrice || 2500;
+
+    // Отрисовка тарифов за м²
+    if (dom.adminTypesContainer && CONFIG.cleaningTypes) {
+      dom.adminTypesContainer.innerHTML = '';
+      CONFIG.cleaningTypes.forEach(type => {
+        const row = document.createElement('div');
+        row.className = 'admin-row-item';
+        row.innerHTML = `
+          <div class="admin-row-info">
+            <span class="admin-row-title">${escapeHtml(type.name)}</span>
+          </div>
+          <div class="admin-input-wrapper">
+            <input type="number" id="admin-type-${type.id}" class="admin-input-number" value="${type.pricePerSqM}" min="1" step="5">
+            <span class="admin-input-unit">₽ / м²</span>
+          </div>
+        `;
+        dom.adminTypesContainer.appendChild(row);
+      });
+    }
+
+    // Отрисовка цен дополнительных услуг
+    if (dom.adminServicesContainer && CONFIG.additionalServices) {
+      dom.adminServicesContainer.innerHTML = '';
+      CONFIG.additionalServices.forEach(service => {
+        const row = document.createElement('div');
+        row.className = 'admin-row-item';
+        row.innerHTML = `
+          <div class="admin-row-info">
+            <span>${service.icon || '✨'}</span>
+            <span class="admin-row-title">${escapeHtml(service.name)}</span>
+          </div>
+          <div class="admin-input-wrapper">
+            <input type="number" id="admin-service-${service.id}" class="admin-input-number" value="${service.price}" min="0" step="50">
+            <span class="admin-input-unit">₽</span>
+          </div>
+        `;
+        dom.adminServicesContainer.appendChild(row);
+      });
+    }
+  }
+
+  /**
+   * Применение изменений к объекту CONFIG и перерисовка калькулятора
+   */
+  function applyAdminChanges() {
+    if (dom.adminGithubRepo) {
+      CONFIG.githubRepo = dom.adminGithubRepo.value.trim();
+    }
+    if (dom.adminCompanyName) CONFIG.companyName = dom.adminCompanyName.value.trim() || CONFIG.companyName;
+    if (dom.adminTgManager) CONFIG.telegramManager = dom.adminTgManager.value.trim() || CONFIG.telegramManager;
+    if (dom.adminPhone) CONFIG.phone = dom.adminPhone.value.trim() || CONFIG.phone;
+    if (dom.adminMinPrice) CONFIG.minOrderPrice = Number(dom.adminMinPrice.value) || CONFIG.minOrderPrice;
+
+    // Сохранение тарифов за м²
+    if (CONFIG.cleaningTypes) {
+      CONFIG.cleaningTypes.forEach(type => {
+        const input = document.getElementById(`admin-type-${type.id}`);
+        if (input && !isNaN(Number(input.value))) {
+          type.pricePerSqM = Number(input.value);
+        }
+      });
+    }
+
+    // Сохранение цен доп. услуг
+    if (CONFIG.additionalServices) {
+      CONFIG.additionalServices.forEach(service => {
+        const input = document.getElementById(`admin-service-${service.id}`);
+        if (input && !isNaN(Number(input.value))) {
+          service.price = Number(input.value);
+        }
+      });
+    }
+
+    // Мгновенное обновление всего интерфейса калькулятора
+    renderBrandHeader();
+    renderCleaningTypes();
+    renderAdditionalServices();
+    calculateAndRender();
+  }
+
+  /**
+   * Глобальное сохранение изменений в репозиторий GitHub через REST API
+   */
+  async function saveGloballyToGitHub() {
+    const rawRepo = dom.adminGithubRepo ? dom.adminGithubRepo.value.trim() : '';
+    const rawToken = dom.adminGithubToken ? dom.adminGithubToken.value.trim() : '';
+
+    // Очистка репозитория (удаляем возможный https://github.com/ в начале)
+    const cleanRepo = rawRepo.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').trim();
+
+    if (!cleanRepo || !cleanRepo.includes('/')) {
+      showGithubStatus('⚠️ Укажите репозиторий в формате «имя_пользователя/имя_репозитория» (например, user/cleaning-calculator)', 'error');
+      if (dom.adminGithubRepo) dom.adminGithubRepo.focus();
+      return;
+    }
+
+    if (!rawToken) {
+      showGithubStatus('⚠️ Введите ваш GitHub Personal Access Token (нажмите «Получить токен в 1 клик»)', 'error');
+      if (dom.adminGithubToken) dom.adminGithubToken.focus();
+      return;
+    }
+
+    // Блокируем кнопку на время отправки
+    if (dom.btnAdminGithubSave) {
+      dom.btnAdminGithubSave.disabled = true;
+    }
+    showGithubStatus('⏳ Подключение к GitHub API...', 'loading');
+
+    try {
+      // 1. Применяем текущие значения формы к конфигурации
+      applyAdminChanges();
+
+      // 2. Запрашиваем информацию о файле config.js из GitHub для получения sha
+      const getFileUrl = `https://api.github.com/repos/${cleanRepo}/contents/config.js`;
+      const getRes = await fetch(getFileUrl, {
+        headers: {
+          'Authorization': `Bearer ${rawToken}`,
+          'Accept': 'application/vnd.github+json'
+        }
+      });
+
+      if (getRes.status === 401) {
+        throw new Error('Неверный токен GitHub или срок его действия истек. Создайте новый токен по ссылке выше.');
+      }
+      if (getRes.status === 404) {
+        throw new Error(`Репозиторий «${cleanRepo}» или файл «config.js» не найден. Проверьте правильность названия репозитория.`);
+      }
+      if (getRes.status === 403) {
+        throw new Error('Доступ запрещен. Убедитесь, что токен имеет галочку доступа «repo» (Contents: read & write).');
+      }
+      if (!getRes.ok) {
+        throw new Error(`Ошибка GitHub API (${getRes.status}): ${getRes.statusText}`);
+      }
+
+      const fileData = await getRes.json();
+      const currentSha = fileData.sha;
+
+      showGithubStatus('⏳ Сохранение и создание коммита в GitHub Pages...', 'loading');
+
+      // 3. Формируем новый текст файла и кодируем в base64
+      const newConfigContent = generateConfigJsSource();
+      const encodedContent = toBase64Utf8(newConfigContent);
+
+      // 4. Отправляем PUT-запрос для обновления файла
+      const putRes = await fetch(getFileUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${rawToken}`,
+          'Accept': 'application/vnd.github+json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: 'Update cleaning calculator prices via Admin Panel',
+          content: encodedContent,
+          sha: currentSha
+        })
+      });
+
+      if (!putRes.ok) {
+        const errData = await putRes.json().catch(() => ({}));
+        throw new Error(errData.message || `Ошибка сохранения: статус ${putRes.status}`);
+      }
+
+      // Успех!
+      showGithubStatus('✓ <strong>Изменения успешно сохранены глобально!</strong><br>Коммит отправлен в GitHub. GitHub Pages обновит сайт для всех посетителей через ~30-60 секунд.', 'success');
+
+    } catch (err) {
+      console.error('Ошибка сохранения в GitHub:', err);
+      showGithubStatus(`❌ ${escapeHtml(err.message)}`, 'error');
+    } finally {
+      if (dom.btnAdminGithubSave) {
+        dom.btnAdminGithubSave.disabled = false;
+      }
+    }
+  }
+
+  /**
+   * Отображение статуса в блоке GitHub
+   */
+  function showGithubStatus(htmlText, type) {
+    if (!dom.adminGithubStatus) return;
+    dom.adminGithubStatus.className = `admin-status-message ${type} visible`;
+    dom.adminGithubStatus.innerHTML = htmlText;
+  }
+
+  /**
+   * Кодирование строки UTF-8 в base64
+   */
+  function toBase64Utf8(str) {
+    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
+      return String.fromCharCode(parseInt(p1, 16));
+    }));
+  }
+
+  /**
+   * Генерация исходного кода config.js
+   */
+  function generateConfigJsSource() {
+    return `/**\n * Конфигурация калькулятора клининговых услуг\n * Сгенерировано через веб-панель управления тарифами\n */\nwindow.CONFIG = ${JSON.stringify(CONFIG, null, 2)};\n`;
+  }
+
+  /**
+   * Скачивание config.js на диск
+   */
+  function downloadUpdatedConfigFile() {
+    applyAdminChanges();
+    const source = generateConfigJsSource();
+    const blob = new Blob([source], { type: 'application/javascript;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'config.js';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showGithubStatus('✓ Файл config.js скачан на компьютер.', 'success');
+  }
+
+  /**
+   * Копирование кода config.js в буфер обмена
+   */
+  function copyUpdatedConfigCode() {
+    applyAdminChanges();
+    const source = generateConfigJsSource();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(source).then(() => {
+        if (dom.btnAdminCopy) {
+          const orig = dom.btnAdminCopy.textContent;
+          dom.btnAdminCopy.textContent = '✓ Скопировано!';
+          setTimeout(() => { dom.btnAdminCopy.textContent = orig; }, 2000);
+        }
+        showGithubStatus('✓ Код config.js скопирован в буфер обмена.', 'success');
+      });
+    } else {
+      fallbackCopyText(source);
+    }
+  }
+
+  /**
+   * Сброс к исходным значениям
+   */
+  function resetAdminConfig() {
+    if (!initialConfigSnapshot) return;
+    Object.assign(CONFIG, JSON.parse(JSON.stringify(initialConfigSnapshot)));
+    populateAdminForm();
+    applyAdminChanges();
+    showGithubStatus('Поля сброшены к исходным значениям.', 'loading');
   }
 
   /**
