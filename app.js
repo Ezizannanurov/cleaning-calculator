@@ -78,6 +78,10 @@
     adminPinInput: document.getElementById('admin-pin-input'),
     btnAuthSubmit: document.getElementById('btn-auth-submit'),
     adminPinError: document.getElementById('admin-pin-error'),
+    adminGsheetUrl: document.getElementById('admin-gsheet-url'),
+    btnGsheetSync: document.getElementById('btn-gsheet-sync'),
+    gsheetLiveIndicator: document.getElementById('gsheet-live-indicator'),
+    adminGsheetStatus: document.getElementById('admin-gsheet-status'),
     adminCompanyName: document.getElementById('admin-company-name'),
     adminTgManager: document.getElementById('admin-tg-manager'),
     adminPhone: document.getElementById('admin-phone'),
@@ -117,6 +121,7 @@
     initPreviewModal();
     initAdminPanel();
     calculateAndRender();
+    initGoogleSheetsSync();
   }
 
   /**
@@ -687,6 +692,19 @@
       }
     });
 
+    // Кнопка синхронизации с Google Таблицей
+    if (dom.btnGsheetSync) {
+      dom.btnGsheetSync.addEventListener('click', () => {
+        const url = dom.adminGsheetUrl ? dom.adminGsheetUrl.value.trim() : (CONFIG.googleSheetUrl || '');
+        if (!url) {
+          showGsheetStatus('⚠️ Вставьте ссылку на Google Таблицу в поле выше.', 'error');
+          if (dom.adminGsheetUrl) dom.adminGsheetUrl.focus();
+          return;
+        }
+        syncWithGoogleSheet(url, true);
+      });
+    }
+
     // Кнопка локальной проверки в калькуляторе
     if (dom.btnAdminApply) {
       dom.btnAdminApply.addEventListener('click', () => {
@@ -789,8 +807,15 @@
    * Заполнение полей формы актуальными данными
    */
   function populateAdminForm() {
-    if (dom.adminGithubRepo) {
-      dom.adminGithubRepo.value = CONFIG.githubRepo || '';
+    if (dom.adminGsheetUrl) dom.adminGsheetUrl.value = CONFIG.googleSheetUrl || '';
+    if (dom.gsheetLiveIndicator) {
+      if (CONFIG.googleSheetUrl) {
+        dom.gsheetLiveIndicator.textContent = '✓ Подключена';
+        dom.gsheetLiveIndicator.classList.add('active');
+      } else {
+        dom.gsheetLiveIndicator.textContent = '⚡ Не подключена';
+        dom.gsheetLiveIndicator.classList.remove('active');
+      }
     }
     if (dom.adminCompanyName) dom.adminCompanyName.value = CONFIG.companyName || '';
     if (dom.adminTgManager) dom.adminTgManager.value = CONFIG.telegramManager || '';
@@ -841,9 +866,7 @@
    * Применение изменений к объекту CONFIG и перерисовка калькулятора
    */
   function applyAdminChanges() {
-    if (dom.adminGithubRepo) {
-      CONFIG.githubRepo = dom.adminGithubRepo.value.trim();
-    }
+    if (dom.adminGsheetUrl) CONFIG.googleSheetUrl = dom.adminGsheetUrl.value.trim();
     if (dom.adminCompanyName) CONFIG.companyName = dom.adminCompanyName.value.trim() || CONFIG.companyName;
     if (dom.adminTgManager) CONFIG.telegramManager = dom.adminTgManager.value.trim() || CONFIG.telegramManager;
     if (dom.adminPhone) CONFIG.phone = dom.adminPhone.value.trim() || CONFIG.phone;
@@ -877,99 +900,165 @@
   }
 
   /**
-   * Глобальное сохранение изменений в репозиторий GitHub через REST API
+   * Фоновая инициализация синхронизации с Google Таблицей
    */
-  async function saveGloballyToGitHub() {
-    const rawRepo = dom.adminGithubRepo ? dom.adminGithubRepo.value.trim() : '';
-    const rawToken = dom.adminGithubToken ? dom.adminGithubToken.value.trim() : '';
+  function initGoogleSheetsSync() {
+    const activeSheetUrl = (CONFIG.googleSheetUrl || '').trim();
+    if (activeSheetUrl) {
+      syncWithGoogleSheet(activeSheetUrl, false);
+    }
+  }
 
-    // Очистка репозитория (удаляем возможный https://github.com/ в начале)
-    const cleanRepo = rawRepo.replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '').trim();
+  /**
+   * Синхронизация тарифов и настроек из Google Таблицы
+   */
+  async function syncWithGoogleSheet(rawUrl, isManual = false) {
+    if (!rawUrl || typeof rawUrl !== 'string') return;
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return;
 
-    if (!cleanRepo || !cleanRepo.includes('/')) {
-      showGithubStatus('⚠️ Укажите репозиторий в формате «имя_пользователя/имя_репозитория» (например, user/cleaning-calculator)', 'error');
-      if (dom.adminGithubRepo) dom.adminGithubRepo.focus();
+    // Извлечение Spreadsheet ID
+    const idMatch = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    const sheetId = idMatch ? idMatch[1] : trimmed;
+
+    if (!sheetId || sheetId.length < 15) {
+      if (isManual) {
+        showGsheetStatus('⚠️ Не удалось распознать ссылку на Google Таблицу. Укажите полную ссылку вида https://docs.google.com/spreadsheets/d/...', 'error');
+      }
       return;
     }
 
-    if (!rawToken) {
-      showGithubStatus('⚠️ Введите ваш GitHub Personal Access Token (нажмите «Получить токен в 1 клик»)', 'error');
-      if (dom.adminGithubToken) dom.adminGithubToken.focus();
-      return;
+    if (isManual && dom.btnGsheetSync) {
+      dom.btnGsheetSync.disabled = true;
+      showGsheetStatus('⏳ Загрузка свежих данных из Google Таблицы...', 'loading');
     }
-
-    // Блокируем кнопку на время отправки
-    if (dom.btnAdminGithubSave) {
-      dom.btnAdminGithubSave.disabled = true;
-    }
-    showGithubStatus('⏳ Подключение к GitHub API...', 'loading');
 
     try {
-      // 1. Применяем текущие значения формы к конфигурации
-      applyAdminChanges();
+      const gvizUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`;
+      const res = await fetch(gvizUrl);
+      if (!res.ok) {
+        throw new Error(`Google Sheets вернул статус ${res.status}. Убедитесь, что доступ к таблице открыт («Все, у кого есть ссылка»).`);
+      }
 
-      // 2. Запрашиваем информацию о файле config.js из GitHub для получения sha
-      const getFileUrl = `https://api.github.com/repos/${cleanRepo}/contents/config.js`;
-      const getRes = await fetch(getFileUrl, {
-        headers: {
-          'Authorization': `Bearer ${rawToken}`,
-          'Accept': 'application/vnd.github+json'
+      const text = await res.text();
+      const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]+)\);/);
+      if (!match || !match[1]) {
+        throw new Error('Не удалось разобрать ответ от Google Таблицы.');
+      }
+
+      const data = JSON.parse(match[1]);
+      if (!data.table || !data.table.rows) {
+        throw new Error('Таблица пуста или имеет нестандартный формат.');
+      }
+
+      let updatedCount = 0;
+      data.table.rows.forEach(r => {
+        if (!r || !r.c) return;
+        const col0 = r.c[0] ? String(r.c[0].v !== null && r.c[0].v !== undefined ? r.c[0].v : '').trim() : '';
+        const col1 = r.c[1] ? (r.c[1].v !== null && r.c[1].v !== undefined ? r.c[1].v : '') : '';
+        const col2 = r.c[2] ? String(r.c[2].v !== null && r.c[2].v !== undefined ? r.c[2].v : '').trim().toLowerCase() : '';
+
+        const key = col2 || col0.toLowerCase();
+        const val = typeof col1 === 'string' ? col1.trim() : col1;
+
+        if (!key || val === '' || val === null || val === undefined) return;
+
+        // Общие параметры компании
+        if (key.includes('companyname') || key.includes('название компании')) {
+          CONFIG.companyName = String(val);
+          updatedCount++;
+        } else if (key.includes('telegram') || key.includes('телеграм')) {
+          CONFIG.telegramManager = String(val).replace(/^@/, '');
+          updatedCount++;
+        } else if (key.includes('phone') || key.includes('телефон')) {
+          CONFIG.phone = String(val);
+          updatedCount++;
+        } else if (key.includes('workinghours') || key.includes('график') || key.includes('часы')) {
+          CONFIG.workingHours = String(val);
+          updatedCount++;
+        } else if (key.includes('minorder') || key.includes('минимальн')) {
+          const num = Number(val);
+          if (!isNaN(num) && num > 0) {
+            CONFIG.minOrderPrice = num;
+            updatedCount++;
+          }
+        }
+
+        // Типы уборки (за м²)
+        if (CONFIG.cleaningTypes) {
+          CONFIG.cleaningTypes.forEach(t => {
+            const tId = t.id.toLowerCase();
+            const tName = t.name.toLowerCase();
+            if (key === tId || key.includes(tId) || col0.toLowerCase().includes(tName)) {
+              const num = Number(val);
+              if (!isNaN(num) && num > 0) {
+                t.pricePerSqM = num;
+                updatedCount++;
+              }
+            }
+          });
+        }
+
+        // Дополнительные услуги
+        if (CONFIG.additionalServices) {
+          CONFIG.additionalServices.forEach(s => {
+            const sId = s.id.toLowerCase();
+            const sName = s.name.toLowerCase();
+            if (key === sId || key.includes(sId) || col0.toLowerCase().includes(sName)) {
+              const num = Number(val);
+              if (!isNaN(num) && num >= 0) {
+                s.price = num;
+                updatedCount++;
+              }
+            }
+          });
         }
       });
 
-      if (getRes.status === 401) {
-        throw new Error('Неверный токен GitHub или срок его действия истек. Создайте новый токен по ссылке выше.');
-      }
-      if (getRes.status === 404) {
-        throw new Error(`Репозиторий «${cleanRepo}» или файл «config.js» не найден. Проверьте правильность названия репозитория.`);
-      }
-      if (getRes.status === 403) {
-        throw new Error('Доступ запрещен. Убедитесь, что токен имеет галочку доступа «repo» (Contents: read & write).');
-      }
-      if (!getRes.ok) {
-        throw new Error(`Ошибка GitHub API (${getRes.status}): ${getRes.statusText}`);
-      }
+      CONFIG.googleSheetUrl = trimmed;
 
-      const fileData = await getRes.json();
-      const currentSha = fileData.sha;
+      // Обновление UI
+      renderBrandHeader();
+      renderCleaningTypes();
+      renderAdditionalServices();
+      calculateAndRender();
 
-      showGithubStatus('⏳ Сохранение и создание коммита в GitHub Pages...', 'loading');
-
-      // 3. Формируем новый текст файла и кодируем в base64
-      const newConfigContent = generateConfigJsSource();
-      const encodedContent = toBase64Utf8(newConfigContent);
-
-      // 4. Отправляем PUT-запрос для обновления файла
-      const putRes = await fetch(getFileUrl, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${rawToken}`,
-          'Accept': 'application/vnd.github+json',
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          message: 'Update cleaning calculator prices via Admin Panel',
-          content: encodedContent,
-          sha: currentSha
-        })
-      });
-
-      if (!putRes.ok) {
-        const errData = await putRes.json().catch(() => ({}));
-        throw new Error(errData.message || `Ошибка сохранения: статус ${putRes.status}`);
+      if (state.isAdminAuthenticated) {
+        populateAdminForm();
       }
 
-      // Успех!
-      showGithubStatus('✓ <strong>Изменения успешно сохранены глобально!</strong><br>Коммит отправлен в GitHub. GitHub Pages обновит сайт для всех посетителей через ~30-60 секунд.', 'success');
+      if (dom.gsheetLiveIndicator) {
+        dom.gsheetLiveIndicator.textContent = '✓ Синхронизировано';
+        dom.gsheetLiveIndicator.classList.add('active');
+      }
+
+      if (isManual) {
+        showGsheetStatus(`✓ <strong>Таблица успешно подключена!</strong><br>Обновлено параметров: ${updatedCount}. Цены в калькуляторе стали актуальными.`, 'success');
+      }
 
     } catch (err) {
-      console.error('Ошибка сохранения в GitHub:', err);
-      showGithubStatus(`❌ ${escapeHtml(err.message)}`, 'error');
+      console.error('Ошибка синхронизации Google Sheets:', err);
+      if (dom.gsheetLiveIndicator) {
+        dom.gsheetLiveIndicator.textContent = '⚠️ Ошибка доступа';
+        dom.gsheetLiveIndicator.classList.remove('active');
+      }
+      if (isManual) {
+        showGsheetStatus(`❌ Ошибка загрузки: ${escapeHtml(err.message)}<br><small>Убедитесь, что в Google Таблице нажато «Поделиться» → «Все, у кого есть ссылка» (Читатель).</small>`, 'error');
+      }
     } finally {
-      if (dom.btnAdminGithubSave) {
-        dom.btnAdminGithubSave.disabled = false;
+      if (isManual && dom.btnGsheetSync) {
+        dom.btnGsheetSync.disabled = false;
       }
     }
+  }
+
+  /**
+   * Отображение уведомлений в блоке Google Таблицы
+   */
+  function showGsheetStatus(htmlText, type) {
+    if (!dom.adminGsheetStatus) return;
+    dom.adminGsheetStatus.className = `admin-status-message ${type} visible`;
+    dom.adminGsheetStatus.innerHTML = htmlText;
   }
 
   /**
