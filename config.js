@@ -5,7 +5,7 @@
 window.CONFIG = {
   "companyName": "Чистый Дом",
   "telegramManager": "cleaning_pro_manager",
-  "phone": "+7 (999) 456-78-99",
+  "phone": "+7 (999) 456-78-90",
   "workingHours": "Ежедневно с 8:00 до 22:00",
   "currencySymbol": "₽",
   "githubRepo": "Ezizannanurov/cleaning-calculator",
