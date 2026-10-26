@@ -78,10 +78,6 @@
     adminPinInput: document.getElementById('admin-pin-input'),
     btnAuthSubmit: document.getElementById('btn-auth-submit'),
     adminPinError: document.getElementById('admin-pin-error'),
-    adminGithubRepo: document.getElementById('admin-github-repo'),
-    adminGithubToken: document.getElementById('admin-github-token'),
-    btnAdminGithubSave: document.getElementById('btn-admin-github-save'),
-    adminGithubStatus: document.getElementById('admin-github-status'),
     adminCompanyName: document.getElementById('admin-company-name'),
     adminTgManager: document.getElementById('admin-tg-manager'),
     adminPhone: document.getElementById('admin-phone'),
@@ -91,7 +87,8 @@
     btnAdminApply: document.getElementById('btn-admin-apply'),
     btnAdminDownload: document.getElementById('btn-admin-download'),
     btnAdminCopy: document.getElementById('btn-admin-copy'),
-    btnAdminReset: document.getElementById('btn-admin-reset')
+    btnAdminReset: document.getElementById('btn-admin-reset'),
+    adminStatusMessage: document.getElementById('admin-status-message')
   };
 
   // Снимок исходной конфигурации для сброса
@@ -690,16 +687,11 @@
       }
     });
 
-    // Кнопка глобального сохранения в GitHub
-    if (dom.btnAdminGithubSave) {
-      dom.btnAdminGithubSave.addEventListener('click', saveGloballyToGitHub);
-    }
-
     // Кнопка локальной проверки в калькуляторе
     if (dom.btnAdminApply) {
       dom.btnAdminApply.addEventListener('click', () => {
         applyAdminChanges();
-        showGithubStatus('✓ Изменения применены в текущем окне калькулятора.', 'success');
+        showAdminStatus('✓ Изменения применены в текущем окне калькулятора.', 'success');
       });
     }
 
@@ -981,21 +973,13 @@
   }
 
   /**
-   * Отображение статуса в блоке GitHub
+   * Отображение уведомлений в панели владельца
    */
-  function showGithubStatus(htmlText, type) {
-    if (!dom.adminGithubStatus) return;
-    dom.adminGithubStatus.className = `admin-status-message ${type} visible`;
-    dom.adminGithubStatus.innerHTML = htmlText;
-  }
-
-  /**
-   * Кодирование строки UTF-8 в base64
-   */
-  function toBase64Utf8(str) {
-    return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, function(match, p1) {
-      return String.fromCharCode(parseInt(p1, 16));
-    }));
+  function showAdminStatus(htmlText, type) {
+    const el = dom.adminStatusMessage || dom.adminGithubStatus;
+    if (!el) return;
+    el.className = `admin-status-message ${type} visible`;
+    el.innerHTML = htmlText;
   }
 
   /**
@@ -1020,7 +1004,7 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showGithubStatus('✓ Файл config.js скачан на компьютер.', 'success');
+    showAdminStatus('✓ Файл config.js скачан на компьютер.', 'success');
   }
 
   /**
@@ -1036,7 +1020,7 @@
           dom.btnAdminCopy.textContent = '✓ Скопировано!';
           setTimeout(() => { dom.btnAdminCopy.textContent = orig; }, 2000);
         }
-        showGithubStatus('✓ Код config.js скопирован в буфер обмена.', 'success');
+        showAdminStatus('✓ Код config.js скопирован! Теперь нажмите кнопку «✏️ Открыть config.js на GitHub» вверху и вставьте его.', 'success');
       });
     } else {
       fallbackCopyText(source);
@@ -1051,7 +1035,7 @@
     Object.assign(CONFIG, JSON.parse(JSON.stringify(initialConfigSnapshot)));
     populateAdminForm();
     applyAdminChanges();
-    showGithubStatus('Поля сброшены к исходным значениям.', 'loading');
+    showAdminStatus('Поля сброшены к исходным значениям.', 'loading');
   }
 
   /**
