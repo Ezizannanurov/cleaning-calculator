@@ -78,10 +78,8 @@
     adminPinInput: document.getElementById('admin-pin-input'),
     btnAuthSubmit: document.getElementById('btn-auth-submit'),
     adminPinError: document.getElementById('admin-pin-error'),
-    adminGsheetUrl: document.getElementById('admin-gsheet-url'),
-    btnGsheetSync: document.getElementById('btn-gsheet-sync'),
-    gsheetLiveIndicator: document.getElementById('gsheet-live-indicator'),
-    adminGsheetStatus: document.getElementById('admin-gsheet-status'),
+    btnAdminServerSave: document.getElementById('btn-admin-server-save'),
+    adminServerStatus: document.getElementById('admin-server-status'),
     adminCompanyName: document.getElementById('admin-company-name'),
     adminTgManager: document.getElementById('admin-tg-manager'),
     adminPhone: document.getElementById('admin-phone'),
@@ -121,7 +119,7 @@
     initPreviewModal();
     initAdminPanel();
     calculateAndRender();
-    initGoogleSheetsSync();
+    loadConfigFromServer();
   }
 
   /**
@@ -546,9 +544,25 @@
       dom.btnCopyText.addEventListener('click', copyPreviewTextToClipboard);
     }
 
-    // При клике на переход в Telegram закрываем модалку через небольшую паузу
+    // При клике на переход в Telegram фиксируем заказ на бэкенде и закрываем модалку
     if (dom.btnConfirmTelegram) {
       dom.btnConfirmTelegram.addEventListener('click', () => {
+        try {
+          const calc = calculateAndRender();
+          fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              area: state.area,
+              type: calc.selectedType ? calc.selectedType.name : '',
+              extras: calc.selectedExtrasList,
+              totalPrice: calc.finalPrice,
+              clientAddress: dom.inputAddress ? dom.inputAddress.value.trim() : '',
+              clientDatetime: dom.inputDatetime ? dom.inputDatetime.value.trim() : ''
+            })
+          }).catch(() => {});
+        } catch (e) {}
+
         setTimeout(closeModal, 400);
       });
     }
@@ -695,17 +709,9 @@
       }
     });
 
-    // Кнопка синхронизации с Google Таблицей
-    if (dom.btnGsheetSync) {
-      dom.btnGsheetSync.addEventListener('click', () => {
-        const url = dom.adminGsheetUrl ? dom.adminGsheetUrl.value.trim() : (CONFIG.googleSheetUrl || '');
-        if (!url) {
-          showGsheetStatus('⚠️ Вставьте ссылку на Google Таблицу в поле выше.', 'error');
-          if (dom.adminGsheetUrl) dom.adminGsheetUrl.focus();
-          return;
-        }
-        syncWithGoogleSheet(url, true);
-      });
+    // Кнопка сохранения на бэкенд-сервере
+    if (dom.btnAdminServerSave) {
+      dom.btnAdminServerSave.addEventListener('click', saveConfigToServer);
     }
 
     // Кнопка локальной проверки в калькуляторе
@@ -907,188 +913,90 @@
   }
 
   /**
-   * Фоновая инициализация синхронизации с Google Таблицей
+   * Загрузка актуальной конфигурации с бэкенд-сервера
    */
-  function initGoogleSheetsSync() {
-    const activeSheetUrl = (CONFIG.googleSheetUrl || '').trim();
-    if (activeSheetUrl) {
-      syncWithGoogleSheet(activeSheetUrl, false);
+  async function loadConfigFromServer() {
+    try {
+      const res = await fetch('/api/config', { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data && typeof data === 'object') {
+        Object.assign(CONFIG, data);
+        renderBrandHeader();
+        renderCleaningTypes();
+        renderAdditionalServices();
+        calculateAndRender();
+        if (state.isAdminAuthenticated) {
+          populateAdminForm();
+        }
 
-      // Автоматическое обновление цен при переключении вкладки обратно на калькулятор
-      window.addEventListener('focus', () => {
-        syncWithGoogleSheet(activeSheetUrl, false);
-      });
+        const syncPillText = document.getElementById('sync-pill-text');
+        if (syncPillText) {
+          syncPillText.textContent = 'Сервер онлайн (Live)';
+        }
+      }
+    } catch (err) {
+      console.log('Бэкенд-сервер недоступен, используются встроенные настройки.');
     }
   }
 
   /**
-   * Синхронизация тарифов и настроек из Google Таблицы
+   * Сохранение настроек на бэкенд-сервер
    */
-  async function syncWithGoogleSheet(rawUrl, isManual = false) {
-    if (!rawUrl || typeof rawUrl !== 'string') return;
-    const trimmed = rawUrl.trim();
-    if (!trimmed) return;
+  async function saveConfigToServer() {
+    applyAdminChanges();
 
-    // Извлечение Spreadsheet ID
-    const idMatch = trimmed.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-    const sheetId = idMatch ? idMatch[1] : trimmed;
-
-    if (!sheetId || sheetId.length < 15) {
-      if (isManual) {
-        showGsheetStatus('⚠️ Не удалось распознать ссылку на Google Таблицу. Укажите полную ссылку вида https://docs.google.com/spreadsheets/d/...', 'error');
-      }
-      return;
+    if (dom.btnAdminServerSave) {
+      dom.btnAdminServerSave.disabled = true;
+      dom.btnAdminServerSave.textContent = '⏳ Сохранение...';
     }
+    showServerStatus('⏳ Сохранение настроек в базу данных сервера...', 'loading');
 
-    if (isManual && dom.btnGsheetSync) {
-      dom.btnGsheetSync.disabled = true;
-      showGsheetStatus('⏳ Загрузка свежих данных из Google Таблицы...', 'loading');
-    }
+    const enteredPin = dom.adminPinInput ? dom.adminPinInput.value.trim() : (CONFIG.adminPin || '8814');
 
     try {
-      // КРИТИЧНО: headers=0 возвращает ВСЕ строки (включая шапку и контакты).
-      // _t=Date.now() и cache: 'no-store' полностью исключают кэш браузера и CDN!
-      const gvizUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&headers=0&tq=&_t=${Date.now()}`;
-      const res = await fetch(gvizUrl, { cache: 'no-store' });
-      if (!res.ok) {
-        throw new Error(`Google Sheets вернул статус ${res.status}. Убедитесь, что доступ к таблице открыт («Все, у кого есть ссылка»).`);
-      }
-
-      const text = await res.text();
-      const match = text.match(/google\.visualization\.Query\.setResponse\(([\s\S]+)\);/);
-      if (!match || !match[1]) {
-        throw new Error('Не удалось разобрать ответ от Google Таблицы.');
-      }
-
-      const data = JSON.parse(match[1]);
-      if (!data.table || !data.table.rows) {
-        throw new Error('Таблица пуста или имеет нестандартный формат.');
-      }
-
-      let updatedCount = 0;
-      data.table.rows.forEach(r => {
-        if (!r || !r.c) return;
-        const col0 = r.c[0] ? String(r.c[0].v !== null && r.c[0].v !== undefined ? r.c[0].v : '').trim() : '';
-        const col1 = r.c[1] ? (r.c[1].v !== null && r.c[1].v !== undefined ? r.c[1].v : '') : '';
-        const col2 = r.c[2] ? String(r.c[2].v !== null && r.c[2].v !== undefined ? r.c[2].v : '').trim().toLowerCase() : '';
-
-        const key = col2 || col0.toLowerCase();
-        const val = typeof col1 === 'string' ? col1.trim() : col1;
-
-        if (!key || val === '' || val === null || val === undefined) return;
-
-        // Общие параметры компании
-        if (key === 'companyname' || key.includes('companyname') || key.includes('название компании')) {
-          if (String(val).trim()) {
-            CONFIG.companyName = String(val).trim();
-            updatedCount++;
-          }
-        } else if (key === 'telegrammanager' || key.includes('telegram') || key.includes('телеграм')) {
-          if (String(val).trim()) {
-            CONFIG.telegramManager = String(val).trim().replace(/^@/, '');
-            updatedCount++;
-          }
-        } else if (key === 'phone' || key.includes('телефон')) {
-          if (String(val).trim()) {
-            CONFIG.phone = String(val).trim();
-            updatedCount++;
-          }
-        } else if (key === 'workinghours' || key.includes('график') || key.includes('часы')) {
-          if (String(val).trim()) {
-            CONFIG.workingHours = String(val).trim();
-            updatedCount++;
-          }
-        } else if (key === 'minorderprice' || key.includes('minorder') || key.includes('минимальн')) {
-          const num = Number(val);
-          if (!isNaN(num) && num > 0) {
-            CONFIG.minOrderPrice = num;
-            updatedCount++;
-          }
-        }
-
-        // Типы уборки (за м²)
-        if (CONFIG.cleaningTypes) {
-          CONFIG.cleaningTypes.forEach(t => {
-            const tId = t.id.toLowerCase();
-            const tName = t.name.toLowerCase();
-            if (key === tId || key.includes(tId) || col0.toLowerCase().includes(tName)) {
-              const num = Number(val);
-              if (!isNaN(num) && num > 0) {
-                t.pricePerSqM = num;
-                updatedCount++;
-              }
-            }
-          });
-        }
-
-        // Дополнительные услуги
-        if (CONFIG.additionalServices) {
-          CONFIG.additionalServices.forEach(s => {
-            const sId = s.id.toLowerCase();
-            const sName = s.name.toLowerCase();
-            if (key === sId || key.includes(sId) || col0.toLowerCase().includes(sName)) {
-              const num = Number(val);
-              if (!isNaN(num) && num >= 0) {
-                s.price = num;
-                updatedCount++;
-              }
-            }
-          });
-        }
+      const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pin: enteredPin,
+          config: CONFIG
+        })
       });
 
-      CONFIG.googleSheetUrl = trimmed;
+      const result = await res.json();
 
-      // Обновление UI
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || `Ошибка сервера (${res.status})`);
+      }
+
+      showServerStatus('✓ <strong>Настройки успешно сохранены на сервере!</strong><br>Новые цены сразу видны всем посетителям сайта.', 'success');
+
+      // Мгновенно обновляем интерфейс калькулятора
       renderBrandHeader();
       renderCleaningTypes();
       renderAdditionalServices();
       calculateAndRender();
 
-      if (state.isAdminAuthenticated) {
-        populateAdminForm();
-      }
-
-      if (dom.gsheetLiveIndicator) {
-        dom.gsheetLiveIndicator.textContent = '✓ Синхронизировано';
-        dom.gsheetLiveIndicator.classList.add('active');
-      }
-
-      // Обновление видимого индикатора в шапке сайта
-      const syncPill = document.getElementById('brand-sync-pill');
-      const syncPillText = document.getElementById('sync-pill-text');
-      if (syncPill && syncPillText) {
-        syncPill.style.display = 'inline-flex';
-        syncPillText.textContent = 'Цены: Google Таблица (Live)';
-      }
-
-      if (isManual) {
-        showGsheetStatus(`✓ <strong>Таблица успешно подключена!</strong><br>Обновлено параметров: ${updatedCount}. Цены в калькуляторе стали актуальными.`, 'success');
-      }
-
     } catch (err) {
-      console.warn('Ошибка синхронизации Google Sheets:', err);
-      if (dom.gsheetLiveIndicator) {
-        dom.gsheetLiveIndicator.textContent = '⚠️ Ошибка доступа';
-        dom.gsheetLiveIndicator.classList.remove('active');
-      }
-      if (isManual) {
-        showGsheetStatus(`❌ Ошибка загрузки: ${escapeHtml(err.message)}<br><small>Убедитесь, что в Google Таблице нажато «Поделиться» → «Все, у кого есть ссылка» (Читатель).</small>`, 'error');
-      }
+      console.error('Ошибка сохранения на сервере:', err);
+      showServerStatus(`❌ Ошибка сохранения: ${escapeHtml(err.message)}`, 'error');
     } finally {
-      if (isManual && dom.btnGsheetSync) {
-        dom.btnGsheetSync.disabled = false;
+      if (dom.btnAdminServerSave) {
+        dom.btnAdminServerSave.disabled = false;
+        dom.btnAdminServerSave.textContent = '💾 Сохранить изменения на сервере';
       }
     }
   }
 
   /**
-   * Отображение уведомлений в блоке Google Таблицы
+   * Отображение уведомлений в блоке сервера
    */
-  function showGsheetStatus(htmlText, type) {
-    if (!dom.adminGsheetStatus) return;
-    dom.adminGsheetStatus.className = `admin-status-message ${type} visible`;
-    dom.adminGsheetStatus.innerHTML = htmlText;
+  function showServerStatus(htmlText, type) {
+    const el = dom.adminServerStatus || dom.adminStatusMessage;
+    if (!el) return;
+    el.className = `admin-status-message ${type} visible`;
+    el.innerHTML = htmlText;
   }
 
   /**
