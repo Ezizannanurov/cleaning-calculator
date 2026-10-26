@@ -1,0 +1,16 @@
+{
+  "name": "cleaning-calculator",
+  "version": "1.0.0",
+  "description": "Онлайн-калькулятор клининга с бэкендом",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "cleaning",
+    "calculator",
+    "telegram"
+  ],
+  "author": "Ezizannanurov",
+  "license": "MIT"
+}

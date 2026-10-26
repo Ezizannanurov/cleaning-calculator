@@ -1,10 +1,12 @@
 {
-  "companyName": "Чистый Дом",
+  "companyName": "Чистый",
   "telegramManager": "cleaning_pro_manager",
   "phone": "+7 (999) 456-78-90",
   "workingHours": "Ежедневно с 8:00 до 22:00",
   "currencySymbol": "₽",
+  "githubRepo": "Ezizannanurov/cleaning-calculator",
   "adminPin": "8814",
+  "googleSheetUrl": "https://docs.google.com/spreadsheets/d/1HGqXDEan_f9t4GQ-KZMi8BhJ-yJWR5dxbTD44VFfO4Y/edit?usp=sharing",
   "minOrderPrice": 2500,
   "defaultArea": 45,
   "minArea": 10,
