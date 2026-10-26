@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta name="description" content="Онлайн-калькулятор стоимости клининга. Рассчитайте точную стоимость уборки квартиры или дома и отправьте заявку напрямую в Telegram за 1 минуту.">
+  <meta name="theme-color" content="#0284c7">
+  <title>Калькулятор стоимости уборки | Чистый Дом</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- Шапка сервиса с реквизитами компании -->
+    <header class="brand-header">
+      <div class="brand-main">
+        <div class="brand-identity">
+          <div class="brand-logo-icon" aria-hidden="true">✨</div>
+          <div>
+            <h1 class="brand-title" id="brand-title">Чистый Дом</h1>
+            <p class="brand-subtitle" id="brand-subtitle">Профессиональный клининг квартир и домов</p>
+          </div>
+        </div>
+        <div class="brand-contact">
+          <a href="tel:+79994567890" class="phone-link" id="brand-phone">+7 (999) 456-78-90</a>
+          <span class="working-hours" id="brand-hours">Ежедневно с 8:00 до 22:00</span>
+        </div>
+      </div>
+      <div class="brand-badges">
+        <span class="trust-pill">✓ Без предоплаты</span>
+        <span class="trust-pill">✓ Своя химия и пылесосы</span>
+        <span class="trust-pill">✓ Гарантия чистоты</span>
+      </div>
+    </header>
+
+    <!-- Основная форма калькулятора -->
+    <main>
+      <form id="cleaning-form" onsubmit="return false;">
+
+        <!-- 1. Площадь помещения -->
+        <section class="calc-card" aria-labelledby="heading-area">
+          <div class="card-header">
+            <h2 class="section-title" id="heading-area">1. Площадь помещения</h2>
+            <span class="section-badge">от 10 до 300 м²</span>
+          </div>
+
+          <div class="area-display-box">
+            <div class="area-number-wrapper">
+              <input type="number" id="area-input" class="area-input-number" min="10" max="300" value="45" aria-label="Площадь помещения в квадратных метрах">
+              <span class="area-unit">кв.м</span>
+            </div>
+            <div class="area-stepper">
+              <button type="button" id="btn-area-minus" class="step-btn" aria-label="Уменьшить площадь на 5 метров">−</button>
+              <button type="button" id="btn-area-plus" class="step-btn" aria-label="Увеличить площадь на 5 метров">+</button>
+            </div>
+          </div>
+
+          <div class="range-slider-wrapper">
+            <input type="range" id="area-slider" class="area-range-slider" min="10" max="300" value="45" step="1" aria-label="Ползунок выбора площади">
+          </div>
+
+          <div class="area-presets" id="area-presets" role="group" aria-label="Быстрый выбор площади">
+            <button type="button" class="preset-chip" data-area="35">1-комн. (35 м²)</button>
+            <button type="button" class="preset-chip active" data-area="45">Стандарт (45 м²)</button>
+            <button type="button" class="preset-chip" data-area="65">2-комн. (65 м²)</button>
+            <button type="button" class="preset-chip" data-area="85">3-комн. (85 м²)</button>
+            <button type="button" class="preset-chip" data-area="130">Дом (130 м²)</button>
+          </div>
+        </section>
+
+        <!-- 2. Тип уборки -->
+        <section class="calc-card" aria-labelledby="heading-types" style="margin-top: 16px;">
+          <div class="card-header">
+            <h2 class="section-title" id="heading-types">2. Тип уборки</h2>
+            <span class="section-badge">Выберите один</span>
+          </div>
+          <div class="cleaning-types-grid" id="cleaning-types-container">
+            <!-- Динамически заполняется из config.js -->
+          </div>
+        </section>
+
+        <!-- 3. Дополнительные услуги -->
+        <section class="calc-card" aria-labelledby="heading-services" style="margin-top: 16px;">
+          <div class="card-header">
+            <h2 class="section-title" id="heading-services">3. Дополнительные услуги</h2>
+            <span class="section-badge">По желанию</span>
+          </div>
+          <div class="services-grid" id="services-container">
+            <!-- Динамически заполняется из config.js -->
+          </div>
+        </section>
+
+        <!-- 4. Адрес и удобная дата -->
+        <section class="calc-card" aria-labelledby="heading-details" style="margin-top: 16px;">
+          <div class="card-header">
+            <h2 class="section-title" id="heading-details">4. Детали выезда</h2>
+            <span class="section-badge">Для менеджера</span>
+          </div>
+          <div class="form-grid">
+            <div class="input-group">
+              <label for="input-address" class="input-label">
+                <span>📍 Адрес уборки</span>
+              </label>
+              <input type="text" id="input-address" class="input-field" placeholder="Улица, дом, квартира">
+            </div>
+            <div class="input-group">
+              <label for="input-datetime" class="input-label">
+                <span>📅 Удобная дата и время</span>
+              </label>
+              <input type="text" id="input-datetime" class="input-field" placeholder="Например: Завтра в 10:00">
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. Итоговый расчет и отправка в Telegram -->
+        <section class="summary-card" aria-labelledby="heading-summary" style="margin-top: 20px;">
+          <div class="price-row">
+            <span class="price-label" id="heading-summary">Ориентировочная сумма:</span>
+            <div class="price-value-box" aria-live="polite">
+              <span class="price-amount" id="total-price">0</span>
+              <span class="price-currency" id="currency-symbol">₽</span>
+            </div>
+          </div>
+
+          <!-- Подсказка о минимальной стоимости выезда -->
+          <div class="min-price-alert" id="min-price-alert" role="status">
+            <span class="min-price-alert-icon" aria-hidden="true">ℹ️</span>
+            <span>Минимальная стоимость выезда — <strong id="min-price-amount">2 500 ₽</strong></span>
+          </div>
+
+          <!-- Детализация расчета -->
+          <p class="price-breakdown" id="price-breakdown"></p>
+
+          <!-- Кнопка заявки в Telegram -->
+          <button type="button" class="btn-telegram" id="btn-telegram" aria-label="Отправить заявку в Telegram">
+            <svg class="tg-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.46c.537-.194 1.006.131.832.92z"/>
+            </svg>
+            <span>Отправить заявку в Telegram</span>
+          </button>
+
+          <p class="btn-subtitle-hint">Откроется предпросмотр сообщения с возможностью перехода в чат с менеджером</p>
+        </section>
+
+      </form>
+    </main>
+
+    <!-- Преимущества и доверие -->
+    <footer class="features-grid" id="features-container">
+      <!-- Динамически заполняется из config.js -->
+    </footer>
+
+  </div>
+
+  <!-- Модальное окно предпросмотра заявки (HTML5 Dialog) -->
+  <dialog id="preview-modal" class="preview-dialog" aria-labelledby="preview-modal-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="modal-title-box">
+          <span class="modal-icon" aria-hidden="true">📋</span>
+          <h3 class="modal-title" id="preview-modal-title">Предпросмотр заявки</h3>
+        </div>
+        <button type="button" class="btn-close-modal" id="btn-close-modal" aria-label="Закрыть предпросмотр">✕</button>
+      </div>
+
+      <p class="modal-subtitle">Проверьте сформированный текст заказа перед переходом в Telegram:</p>
+
+      <div class="preview-text-wrapper">
+        <pre class="preview-text" id="preview-text-content"></pre>
+      </div>
+
+      <div class="modal-actions">
+        <a href="#" target="_blank" rel="noopener noreferrer" class="btn-modal-telegram" id="btn-confirm-telegram">
+          <svg class="tg-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.446 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.46c.537-.194 1.006.131.832.92z"/>
+          </svg>
+          <span>Перейти в Telegram</span>
+        </a>
+        <div class="modal-secondary-actions">
+          <button type="button" class="btn-copy" id="btn-copy-text" aria-label="Скопировать текст заказа">
+            <span id="copy-icon" aria-hidden="true">📋</span>
+            <span id="copy-label">Скопировать текст</span>
+          </button>
+          <button type="button" class="btn-cancel" id="btn-cancel-modal">
+            Изменить данные
+          </button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Подключение конфигурации и логики -->
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
